@@ -2,10 +2,13 @@
 
 use Laravel\Lumen\Application;
 use App\Services\NeuronMapper;
+use Illuminate\Http\Request;
 
 class RapidBrain {
 
 	const SCOPE_SEPARATOR = '.';
+	const RENDER_HTML = 'html';
+	const RENDER_JSON = 'json';
 
 	protected $app, $mapper;
 
@@ -35,6 +38,9 @@ class RapidBrain {
 			}
 			return $brain->handleUrl($mapper, $synapse); 
 		});
+		$this->app->post('{synapse:.*}', function(Request $request, NeuronMapper $mapper, $synapse) use ($brain) { 
+			return $brain->saveNeurons($mapper, $synapse, $request->all()); 
+		});
 	}
 
 
@@ -46,70 +52,127 @@ class RapidBrain {
 
 	protected function handleUrl(NeuronMapper $mapper, $synapse)
 	{
+		$renderType = self::RENDER_HTML;
+
+		if (preg_match('/\.html$/', $synapse))
+		{
+			$synapse = str_replace('.html', '', $synapse);
+		}
+		if (preg_match('/\.json$/', $synapse))
+		{
+			$synapse = str_replace('.json', '', $synapse);
+			$renderType = self::RENDER_JSON;
+		}
+
 		$synapse =  $synapse ?: '/';
 		
 		$neuron = $mapper->find($synapse);
 		if ($neuron)
 		{
-			$render = $this->renderNeuron($neuron);
-			if (env('APP_DEBUG'))
+			$render = $this->renderNeuron($synapse, $neuron, $renderType);
+			if (env('APP_DEBUG') && $renderType == self::RENDER_HTML)
 			{
-				$style = '<style>span.synapse{background:red;color:white;}</style>';
+				$append = '<style>span.synapse{background:red;color:white;}</style>';
+				$append .= '<script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>';
+				$append .= '<script src="/app.js"></script>';
 				if (strpos($render, '</head>') !== FALSE)
 				{
-					$render = str_replace('</head>', $style . '</head>', $render);
+					$render = str_replace('</head>', $append . '</head>', $render);
 				}
 				else
 				{
-					$render = $style . $render;
+					$render = $append . $render;
 				}
 			}
-			echo $render;
+
+			if ($renderType == self::RENDER_HTML)
+			{
+				return $render;
+			}
+			elseif ($renderType == self::RENDER_JSON)
+			{
+				return response()->json($render);
+			}
 		}
 		else
 		{
-			return '404';
+			abort(404);
 		}
 	}
 
-	protected function renderNeuron($neuron, $root = NULL)
+	protected function renderNeuron($synapse, $neuron, $renderType, $root = NULL)
 	{
 		$root = $root ?: $neuron;
 		$synapses = array();
 		$value = array_get($neuron, 'value');
 		preg_match_all('/\{\{(.+?)\}\}/i', $value, $synapses);
-		//dd($neuron, $synapses);
-		if ( ! count($synapses[1]))
+		
+		switch ($renderType)
+		{
+			case self::RENDER_HTML:
+				return $this->renderNeuronHtml($synapse, $neuron, $synapses[1], $root);
+			case self::RENDER_JSON:
+				return $this->renderNeuronArray($synapse, $neuron, $synapses[1], $root);
+		}
+
+		return null;
+	}
+
+	protected function renderNeuronHtml($synapse, $neuron, $synapses, $root)
+	{
+		$value = array_get($neuron, 'value');
+		if ( ! count($synapses))
 		{
 			return $value;
 		}
-		foreach($synapses[1] as $synapse)
+		foreach($synapses as $_synapse)
 		{
-			$render = env('APP_DEBUG') ? '<span class="synapse">' . $synapse . '</span>' : '';
-			if (strpos($synapse, '$this' . self::SCOPE_SEPARATOR) === 0)
+			$render = env('APP_DEBUG') ? '<span class="synapse">' . $_synapse . '</span>' : '';
+			if (strpos($_synapse, '$this' . self::SCOPE_SEPARATOR) === 0)
 			{
-				$render = $this->renderNeuronProperty($neuron, $this->getScopedSynapse($synapse)[1]) ?: $render;
+				$render = $this->renderNeuronProperty($neuron, $this->getScopedSynapse($_synapse)[1]) ?: $render;
 			}
-			elseif (strpos($synapse, '$page' . self::SCOPE_SEPARATOR) === 0)
+			elseif (strpos($_synapse, '$page' . self::SCOPE_SEPARATOR) === 0)
 			{
-				$render = $this->renderNeuronProperty($root, $this->getScopedSynapse($synapse)[1]) ?: $render;
+				$render = $this->renderNeuronProperty($root, $this->getScopedSynapse($_synapse)[1]) ?: $render;
 			}
-			elseif (strpos($synapse, '$site' . self::SCOPE_SEPARATOR) === 0)
+			elseif (strpos($_synapse, '$site' . self::SCOPE_SEPARATOR) === 0)
 			{
-				$render = $this->app->get(strtoupper($this->getScopedSynapse($synapse[1]))) ?: $render;
+				$render = $this->app->get(strtoupper($this->getScopedSynapse($_synapse[1]))) ?: $render;
 			}
 			else
 			{
-				$neuron = $this->mapper->find($synapse);
+				$neuron = $this->mapper->find($_synapse);
 				if ($neuron)
 				{
-					$render = $this->renderNeuron($neuron, $root);
+					$render = $this->renderNeuron($_synapse, $neuron, self::RENDER_HTML, $root);
 				}
 			}
-			$value = str_replace('{{' . $synapse . '}}', $render, $value);
-			$value = str_replace('data-source="' . $synapse . '"', '', $value);
+			$value = str_replace('{{' . $_synapse . '}}', $render, $value);
+			$value = str_replace('data-source="' . $_synapse . '"', '', $value);
 		}
+
 		return $value;
+	}
+
+	protected function renderNeuronArray($synapse, $neuron, $synapses, $root)
+	{
+		$array = [$synapse => $neuron];
+		if ( ! count($synapses))
+		{
+			return $array;
+		}
+
+		foreach($synapses as $_synapse)
+		{
+			$neuron = $this->mapper->find($_synapse);
+			if ($neuron)
+			{
+				$array = array_merge($array, (array) $this->renderNeuron($_synapse, $neuron, self::RENDER_JSON, $root));
+			}
+		}
+
+		return $array;
 	}
 
 	protected function getScopedSynapse($synapse)
@@ -120,6 +183,13 @@ class RapidBrain {
 	public function renderNeuronProperty($neuron, $property)
 	{
 		return array_get(array_get($neuron, 'data', []), $property, '');
+	}
+
+	protected function saveNeurons(NeuronMapper $mapper, $synapse, $neurons)
+	{
+		$mapper->save($neurons);
+
+		return response()->json($neurons);
 	}
 
 }
