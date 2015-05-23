@@ -2,7 +2,7 @@
 
 require_once __DIR__.'/../vendor/autoload.php';
 
-// Dotenv::load(__DIR__.'/../');
+Dotenv::load(__DIR__.'/../');
 
 /*
 |--------------------------------------------------------------------------
@@ -95,11 +95,11 @@ $app->register('App\Providers\AppServiceProvider');
 |
 */
 
-$rapidBrain = $app->make('App\Services\RapidBrain');
+$rapidBrain = $app->make('App\Services\RapidBrain', [$app]);
 
 //$rapidBrain->preRegisterRoutes();
 
-require __DIR__.'/../app/Http/routes.php';
+//require __DIR__.'/../app/Http/routes.php';
 
 $rapidBrain->lucidity();
 
