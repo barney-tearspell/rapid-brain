@@ -1,3 +1,4 @@
 /vendor
 /storage/app/data
 .env
+.idea/

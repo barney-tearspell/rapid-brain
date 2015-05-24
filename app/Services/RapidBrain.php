@@ -28,14 +28,7 @@ class RapidBrain {
 	protected function setupSynapseRoute()
 	{
 		$brain = $this;
-		$this->app->get('{synapse:.*}', function(NeuronMapper $mapper, $synapse) use ($brain) { 
-			if (FALSE) {
-				$mapper->save([
-					'global-header' => ['value' => '<h1>Site</h1><nav><ul><li><a href="/">Home</a></li><li><a href="/about">About</a></li><li><a href="/contact">Contact</a></li></ul></nav>'],
-					'/' => ['value' => '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Home</title></head><body><header data-src="global-header">{{global-header}}</header><h1>Home</h1><footer data-src="global-footer">{{global-footer}}</footer></body></html>'],
-					'about' => ['value' => '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Home</title></head><body><header data-src="global-header">{{global-header}}</header><h1>About</h1><footer data-src="global-footer">{{global-footer}}</footer></body></html>']
-				]);
-			}
+		$this->app->get('{synapse:.*}', function(NeuronMapper $mapper, $synapse) use ($brain) {
 			return $brain->handleUrl($mapper, $synapse); 
 		});
 		$this->app->post('{synapse:.*}', function(Request $request, NeuronMapper $mapper, $synapse) use ($brain) { 
@@ -96,7 +89,7 @@ class RapidBrain {
 		}
 		else
 		{
-			abort(404);
+			return response(view('404'), 404);
 		}
 	}
 
@@ -138,7 +131,7 @@ class RapidBrain {
 			}
 			elseif (strpos($_synapse, '$site' . self::SCOPE_SEPARATOR) === 0)
 			{
-				$render = $this->app->get(strtoupper($this->getScopedSynapse($_synapse[1]))) ?: $render;
+				$render = env(strtoupper($this->getScopedSynapse($_synapse[1]))) ?: $render;
 			}
 			else
 			{
@@ -187,9 +180,34 @@ class RapidBrain {
 
 	protected function saveNeurons(NeuronMapper $mapper, $synapse, $neurons)
 	{
+		$redirect = false;
+		if (isset($neurons['neuron']) && ! is_array($neurons['neuron']))
+		{
+			$synapse = $synapse ?: '/';
+			$neurons = [
+				$synapse => [
+					'value' => $neurons['neuron']
+				]
+			];
+			$redirect = true;
+		}
+
+		$this->validateNeurons($neurons);
 		$mapper->save($neurons);
 
-		return response()->json($neurons);
+		return $redirect ? redirect($synapse) : response()->json($neurons);
+	}
+
+
+	protected function validateNeurons(array $neurons)
+	{
+		foreach($neurons as $neuron)
+		{
+			if ( ! isset ($neuron['value']))
+			{
+				throw new \InvalidArgumentException('Neuron must contain "value" property!');
+			}
+		}
 	}
 
 }
