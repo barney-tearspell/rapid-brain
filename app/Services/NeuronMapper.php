@@ -1,38 +1,62 @@
 <?php namespace App\Services;
 
-use Illuminate\Contracts\Filesystem\Factory as File;
-
 class NeuronMapper {
 
-	private $filesystem, $file, $data;
+	private $filename;
 
-	public function __construct(File $filesystem, $file = 'neurons.json') {
-		$this->file = 'data' . DIRECTORY_SEPARATOR . $file;
-		$this->filesystem = $filesystem;
+	private static $data;
+
+	public function __construct($filename) {
+		$this->filename = $filename;
+		if ( ! $this->getData()) {
+			$this->setData(array());
+		}
 	}
 
 	public function find($synapse) {
-		return array_get($this->getNeurons(), $synapse, '');
+		$neurons = $this->getNeurons();
+		return isset($neurons[$synapse]) ? $neurons[$synapse] : '';
 	}
 
 	public function save(array $neurons) {
 		// todo Validate neurons format here
 		$neurons = array_merge($this->getNeurons(), $neurons);
-		$this->data = $neurons;
+		$this->setData($neurons);
 
-		return $this->filesystem->put($this->file, json_encode($this->data));
+		return $this->put($this->filename, json_encode($this->getData()));
 	}
 
 	protected function getNeurons() {
-		if ($this->data) {
-			return $this->data;
+		if ($data = $this->getData()) {
+			return $data;
 		}
 
-		if ( ! $this->filesystem->exists($this->file)) {
-			$this->filesystem->put($this->file, json_encode([]));
+		if ( ! file_exists($this->filename)) {
+			$this->put($this->filename, json_encode(array()));
 		}
 
-		return $this->data = json_decode($this->filesystem->get($this->file), true);
+		return $this->setData(json_decode($this->get($this->filename), true))->getData();
+	}
+
+	protected function setData(array $data) {
+		static::$data[$this->filename] = $data;
+
+		return $this;
+	}
+
+	protected function getData() {
+		return isset(static::$data[$this->filename]) ? static::$data[$this->filename] : null;
+	}
+
+	protected function put($filename, $data) {
+		if( ! is_dir($dir = dirname($filename))) {
+			mkdir($dir);
+		}
+		return file_put_contents($filename, $data, LOCK_EX);
+	}
+
+	protected function get($filename) {
+		return file_get_contents($filename);
 	}
 
 }

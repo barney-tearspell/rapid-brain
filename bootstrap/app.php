@@ -83,6 +83,7 @@ $app->singleton(
 */
 
 $app->register('App\Providers\AppServiceProvider');
+$app->register('App\Providers\RapidBrainProvider');
 
 /*
 |--------------------------------------------------------------------------
@@ -94,15 +95,5 @@ $app->register('App\Providers\AppServiceProvider');
 | can respond to, as well as the controllers that may handle them.
 |
 */
-
-$rapidBrain = $app->make('App\Services\RapidBrain', [$app]);
-
-//$rapidBrain->preRegisterRoutes();
-
-//require __DIR__.'/../app/Http/routes.php';
-
-$rapidBrain->lucidity();
-
-//$rapidBrain->postRegisterRoutes();
 
 return $app;
