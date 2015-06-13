@@ -65,7 +65,7 @@ class RapidBrain {
 			$render = $this->renderNeuron($synapse, $neuron, $renderType);
 			if (env('APP_DEBUG') && $renderType == self::RENDER_HTML)
 			{
-				$append = '<style>span.synapse{background:red;color:white;}</style>';
+				$append = '<style>a.synapse{background:red;color:white;}</style>';
 				$append .= '<script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>';
 				$append .= '<script src="/app.js"></script>';
 				if (strpos($render, '</head>') !== FALSE)
@@ -120,7 +120,7 @@ class RapidBrain {
 		}
 		foreach($synapses as $_synapse)
 		{
-			$render = env('APP_DEBUG') ? '<span class="synapse">' . $_synapse . '</span>' : '';
+			$render = env('APP_DEBUG') ? '<a href="' . $_synapse . '" class="synapse">' . $_synapse . '</a>' : '';
 			if (strpos($_synapse, '$this' . self::SCOPE_SEPARATOR) === 0)
 			{
 				$render = $this->renderNeuronProperty($neuron, $this->getScopedSynapse($_synapse)[1]) ?: $render;
