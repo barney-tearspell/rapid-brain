@@ -1,0 +1,30 @@
+<!-- /404 -->
+<!doctype html>
+<html>
+	<head>
+		<title>Title</title>
+		<base href="/" />
+		<meta charset="utf-8">
+		<meta http-equiv="x-ua-compatible" content="ie=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" href="app.css"/>
+	</head>
+	<body>
+		<h1>this page does not exist</h1>
+		<div data-synapse="e404_tools" data-condition="loggedin()">{{e404_tools}}</div>
+		<div data-synapse="loggin" data-condition="!loggedin()">{{loggin}}</div>
+	</body>
+</html>
+
+<!-- /404_tools -->
+<div data-synapse="create-page-button">{{create-page-button}}</div>
+<div>
+	<a href="/edit/?/e404/">edit the 404 page</a>
+</div>
+
+<!-- /create-page-button -->
+<a id="create_page">Create Page</a>
+<script>
+	var href='/edit/?'+window.location.pathname;
+	document.getElementById('create_page').setAttribute('href',href);
+</script>
