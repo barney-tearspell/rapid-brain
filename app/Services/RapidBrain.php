@@ -2,7 +2,6 @@
 
 use Laravel\Lumen\Application;
 use App\Services\NeuronMapper;
-use Illuminate\Http\Request;
 
 class RapidBrain {
 
@@ -10,30 +9,11 @@ class RapidBrain {
 	const RENDER_HTML = 'html';
 	const RENDER_JSON = 'json';
 
-	protected $app, $mapper;
+	protected $mapper;
 
-	public function __construct(Application $app, NeuronMapper $mapper)
+	public function __construct(NeuronMapper $mapper)
 	{
-		$this->app = $app;
 		$this->mapper = $mapper;
-	}
-
-
-	public function lucidity()
-	{
-		$this->setupSynapseRoute();
-	}
-
-
-	protected function setupSynapseRoute()
-	{
-		$brain = $this;
-		$this->app->get('{synapse:.*}', function(NeuronMapper $mapper, $synapse) use ($brain) {
-			return $brain->handleUrl($mapper, $synapse); 
-		});
-		$this->app->post('{synapse:.*}', function(Request $request, NeuronMapper $mapper, $synapse) use ($brain) { 
-			return $brain->saveNeurons($mapper, $synapse, $request->all()); 
-		});
 	}
 
 
@@ -43,7 +23,7 @@ class RapidBrain {
 	}
 
 
-	protected function handleUrl(NeuronMapper $mapper, $synapse)
+	public function activateSynapse(NeuronMapper $mapper, $synapse)
 	{
 		$renderType = self::RENDER_HTML;
 
@@ -178,7 +158,7 @@ class RapidBrain {
 		return array_get(array_get($neuron, 'data', []), $property, '');
 	}
 
-	protected function saveNeurons(NeuronMapper $mapper, $synapse, $neurons)
+	public function saveNeurons(NeuronMapper $mapper, $synapse, $neurons)
 	{
 		$redirect = false;
 		if (isset($neurons['neuron']) && ! is_array($neurons['neuron']))
