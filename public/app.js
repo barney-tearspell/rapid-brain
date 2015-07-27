@@ -1,7 +1,11 @@
 var neurons;
 
+var dataurl = window.location.pathname || '/';
+dataurl = dataurl.replace(/(.*?)\/$/, '$1');
+dataurl = dataurl + '.json';
+
 $.ajax(
-	document.baseURI + '.json',
+	dataurl,
 	{
 		success: function(data){
 			neurons = data;
